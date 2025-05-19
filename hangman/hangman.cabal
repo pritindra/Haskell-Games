@@ -1,0 +1,24 @@
+name:                hangman
+version:             0.1.0.0
+-- synopsis:
+-- description:
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+
+executable hangman
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5,
+                       random,
+                       split
+  other-modules:       Hangman,
+                       Lexicon
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Words
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5,
+                       random
