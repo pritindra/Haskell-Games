@@ -22,6 +22,61 @@
   (major1) == 4 && (major2) == 12 && (minor) <= 0)
 #endif /* MIN_VERSION_base */
 
+/* package brick-1.10 */
+#ifndef VERSION_brick
+#define VERSION_brick "1.10"
+#endif /* VERSION_brick */
+#ifndef MIN_VERSION_brick
+#define MIN_VERSION_brick(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  10 || \
+  (major1) == 1 && (major2) == 10 && (minor) <= 0)
+#endif /* MIN_VERSION_brick */
+
+/* package lens-5.3.2 */
+#ifndef VERSION_lens
+#define VERSION_lens "5.3.2"
+#endif /* VERSION_lens */
+#ifndef MIN_VERSION_lens
+#define MIN_VERSION_lens(major1,major2,minor) (\
+  (major1) <  5 || \
+  (major1) == 5 && (major2) <  3 || \
+  (major1) == 5 && (major2) == 3 && (minor) <= 2)
+#endif /* MIN_VERSION_lens */
+
+/* package microlens-0.4.13.1 */
+#ifndef VERSION_microlens
+#define VERSION_microlens "0.4.13.1"
+#endif /* VERSION_microlens */
+#ifndef MIN_VERSION_microlens
+#define MIN_VERSION_microlens(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  4 || \
+  (major1) == 0 && (major2) == 4 && (minor) <= 13)
+#endif /* MIN_VERSION_microlens */
+
+/* package microlens-th-0.4.3.15 */
+#ifndef VERSION_microlens_th
+#define VERSION_microlens_th "0.4.3.15"
+#endif /* VERSION_microlens_th */
+#ifndef MIN_VERSION_microlens_th
+#define MIN_VERSION_microlens_th(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  4 || \
+  (major1) == 0 && (major2) == 4 && (minor) <= 3)
+#endif /* MIN_VERSION_microlens_th */
+
+/* package mtl-2.2.2 */
+#ifndef VERSION_mtl
+#define VERSION_mtl "2.2.2"
+#endif /* VERSION_mtl */
+#ifndef MIN_VERSION_mtl
+#define MIN_VERSION_mtl(major1,major2,minor) (\
+  (major1) <  2 || \
+  (major1) == 2 && (major2) <  2 || \
+  (major1) == 2 && (major2) == 2 && (minor) <= 2)
+#endif /* MIN_VERSION_mtl */
+
 /* package random-1.2.1.2 */
 #ifndef VERSION_random
 #define VERSION_random "1.2.1.2"
@@ -43,6 +98,28 @@
   (major1) == 0 && (major2) <  2 || \
   (major1) == 0 && (major2) == 2 && (minor) <= 5)
 #endif /* MIN_VERSION_split */
+
+/* package transformers-0.5.6.2 */
+#ifndef VERSION_transformers
+#define VERSION_transformers "0.5.6.2"
+#endif /* VERSION_transformers */
+#ifndef MIN_VERSION_transformers
+#define MIN_VERSION_transformers(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  5 || \
+  (major1) == 0 && (major2) == 5 && (minor) <= 6)
+#endif /* MIN_VERSION_transformers */
+
+/* package vty-5.39 */
+#ifndef VERSION_vty
+#define VERSION_vty "5.39"
+#endif /* VERSION_vty */
+#ifndef MIN_VERSION_vty
+#define MIN_VERSION_vty(major1,major2,minor) (\
+  (major1) <  5 || \
+  (major1) == 5 && (major2) <  39 || \
+  (major1) == 5 && (major2) == 39 && (minor) <= 0)
+#endif /* MIN_VERSION_vty */
 
 /* tool gcc-9 */
 #ifndef TOOL_VERSION_gcc

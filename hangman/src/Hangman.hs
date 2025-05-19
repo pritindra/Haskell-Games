@@ -1,106 +1,159 @@
-module Hangman where
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
+module Hangman (runHangman) where
+
+import Brick
+import Brick.Widgets.Border
+import Brick.Widgets.Center
+import Brick.Widgets.Edit
+import qualified Graphics.Vty as V
 import Data.List (intersperse)
 import Data.Maybe (isJust)
-import Control.Monad (forever)
-import System.Exit (exitSuccess)
+import Lens.Micro.TH (makeLenses)
+import Lens.Micro ((^.), (&), (.~), (%~))
+import Control.Monad.IO.Class (liftIO)
 
 -- === Configuration ===
 
 maxAttempts :: Int
 maxAttempts = 10
 
--- === Output Abstraction ===
-
-display :: String -> IO ()
-display = putStrLn
-
 -- === Data Types ===
 
+data Name = InputField deriving (Ord, Show, Eq)
+
 data GameState = GameState
-  { targetWord   :: String
-  , revealed     :: [Maybe Char]
-  , triedLetters :: [Char]
+  { _targetWord   :: String
+  , _revealed     :: [Maybe Char]
+  , _triedLetters :: [Char]
+  , _message      :: String
+  , _editorState  :: Editor String Name
   }
 
-instance Show GameState where
-  show (GameState _ revealedLetters guessedLetters) =
-    intersperse ' ' (map displayChar revealedLetters)
-    ++ "\nGuessed so far: " ++ intersperse ' ' guessedLetters
-
-displayChar :: Maybe Char -> Char
-displayChar Nothing  = '_'
-displayChar (Just c) = c
+makeLenses ''GameState
 
 -- === Initialization ===
 
 createGame :: String -> GameState
-createGame word = GameState word (replicate (length word) Nothing) []
+createGame word = GameState word (replicate (length word) Nothing) [] "" (editor InputField (Just 1) "")
 
 -- === Game Logic ===
 
 isLetterInWord :: GameState -> Char -> Bool
-isLetterInWord (GameState word _ _) ch = ch `elem` word
+isLetterInWord gs ch = ch `elem` (gs ^. targetWord)
 
 hasBeenTried :: GameState -> Char -> Bool
-hasBeenTried (GameState _ _ tried) ch = ch `elem` tried
+hasBeenTried gs ch = ch `elem` (gs ^. triedLetters)
 
 updateGameState :: GameState -> Char -> GameState
-updateGameState (GameState word revealedSoFar tried) guess =
-  GameState word newRevealed (guess : tried)
-  where
-    newRevealed = zipWith (\w r -> if w == guess then Just w else r) word revealedSoFar
+updateGameState gs guess =
+  gs & revealed %~ zipWith (\w r -> if w == guess then Just w else r) (gs ^. targetWord)
+     & triedLetters %~ (guess :)
 
 missCount :: GameState -> Int
-missCount (GameState word _ tried) =
-  length $ filter (`notElem` word) tried
+missCount gs = length $ filter (`notElem` (gs ^. targetWord)) (gs ^. triedLetters)
 
--- === Game Flow ===
+-- === Brick App Definition ===
 
-handleGuess :: GameState -> Char -> IO GameState
-handleGuess state guess = do
-  display ""
-  display $ "You guessed " ++ [guess]
-  let newState = updateGameState state guess
-  case (isLetterInWord state guess, hasBeenTried state guess) of
-    (_, True) -> do
-      display "You've already guessed this letter!"
-      return newState
-    (True, _) -> do
-      display "You matched a letter!"
-      return newState
-    (False, _) -> do
-      let attemptsLeft = show $ maxAttempts - missCount newState
-      display $ "Uh oh, try again! You have " ++ attemptsLeft ++ " guesses left."
-      return newState
+app :: App GameState () Name
+app = App
+  { appDraw = drawUI
+  , appChooseCursor = showFirstCursor
+  , appHandleEvent = handleEvent
+  , appStartEvent = pure ()
+  , appAttrMap = const theMap
+  }
 
-checkGameOver :: GameState -> IO ()
-checkGameOver gs@(GameState word _ _) =
-  if missCount gs >= maxAttempts
-    then do
-      display "You guessed incorrectly too many times :("
-      display $ "The word was: " ++ word
-      exitSuccess
-    else return ()
+-- === UI Drawing ===
 
-checkVictory :: GameState -> IO ()
-checkVictory (GameState _ revealedLetters _) =
-  if all isJust revealedLetters
-    then do
-      display "You win!"
-      exitSuccess
-    else return ()
+drawUI :: GameState -> [Widget Name]
+drawUI gs =
+  [center $ border $ vBox
+    [ str "Hangman Game"
+    , padTop (Pad 1) $ str $ "Word: " ++ displayWord (gs ^. revealed)
+    , padTop (Pad 1) $ str $ "Guessed letters: " ++ intersperse ' ' (gs ^. triedLetters)
+    , padTop (Pad 1) $ str $ "Misses left: " ++ show (maxAttempts - missCount gs)
+    , padTop (Pad 1) $ str $ gs ^. message
+    , padTop (Pad 1) $ str "Type a letter and press Enter to guess"
+    , padTop (Pad 1) $ renderEditor (str . unlines) True (gs ^. editorState)
+    ]
+  ]
 
--- === Main Game Loop ===
+displayWord :: [Maybe Char] -> String
+displayWord = intersperse ' ' . map displayChar
 
-gameLoop :: GameState -> IO ()
-gameLoop state = forever $ do
-  checkGameOver state
-  checkVictory state
-  display $ show state
-  display "Guess a letter: "
-  input <- getLine
-  case input of
-    [ch] -> handleGuess state ch >>= gameLoop
-    _    -> display "Your guess must be a single letter."
+displayChar :: Maybe Char -> Char
+displayChar Nothing = '_'
+displayChar (Just c) = c
+
+-- === Event Handling ===
+
+handleEvent :: BrickEvent Name () -> EventM Name GameState ()
+handleEvent (VtyEvent (V.EvKey V.KEnter [])) = do
+  gs <- get
+  let inputStr = concat $ getEditContents (gs ^. editorState)
+  case inputStr of
+    [c] | c `elem` ['a'..'z'] || c `elem` ['A'..'Z'] -> do
+      let newState = processGuess gs c
+      if isGameOver newState || isVictory newState
+        then do
+          put newState
+          liftIO $ putStrLn $ if isGameOver newState 
+                             then "Game over! The word was: " ++ (newState ^. targetWord)
+                             else "You win!"
+          halt
+        else put $ clearEditor newState
+    _ -> put $ gs & message .~ "Your guess must be a single letter."
+handleEvent (VtyEvent (V.EvKey (V.KChar c) [])) = do
+  gs <- get
+  put $ gs & editorState %~ insertChar c & message .~ ""
+handleEvent (VtyEvent (V.EvKey V.KBS [])) = do
+  gs <- get
+  put $ gs & editorState %~ deleteChar & message .~ ""
+handleEvent _ = return ()
+
+-- Helper to insert a character into the editor
+insertChar :: Char -> Editor String Name -> Editor String Name
+insertChar c ed = editor InputField (Just 1) (concat (getEditContents ed) ++ [c])
+
+-- Helper to delete the last character from the editor
+deleteChar :: Editor String Name -> Editor String Name
+deleteChar ed = 
+  let content = concat (getEditContents ed)
+      newContent = if null content then "" else init content
+  in editor InputField (Just 1) newContent
+
+clearEditor :: GameState -> GameState
+clearEditor gs = gs & editorState .~ editor InputField (Just 1) ""
+
+-- === Game Logic Helpers ===
+
+processGuess :: GameState -> Char -> GameState
+processGuess gs guess
+  | hasBeenTried gs guess = gs & message .~ "You've already guessed this letter!"
+  | isLetterInWord gs guess = updateGameState gs guess & message .~ "You matched a letter!"
+  | otherwise = updateGameState gs guess & message .~ "Uh oh, try again!"
+
+isGameOver :: GameState -> Bool
+isGameOver gs = missCount gs >= maxAttempts
+
+isVictory :: GameState -> Bool
+isVictory gs = all isJust (gs ^. revealed)
+
+-- === Attribute Map ===
+
+theMap :: AttrMap
+theMap = attrMap V.defAttr
+  [ (editAttr, V.white `on` V.blue)
+  , (editFocusedAttr, V.black `on` V.yellow)
+  ]
+
+-- === Main function to run the app ===
+
+runHangman :: String -> IO ()
+runHangman word = do
+  let initialState = createGame word
+  _ <- defaultMain app initialState
+  return ()
 
